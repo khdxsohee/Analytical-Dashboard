@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brightboard Analytics</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #ffffff;
+    color: #1f2937;
+    overflow-x: hidden;
+  }
+  .app { display: flex; min-height: 100vh; width: 100%; }
+
+  /* Sidebar */
+  .sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    background: #eef7f5;
+    padding: 32px 24px;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    transition: transform 0.3s ease;
+  }
+  .logo { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; margin-bottom: 36px; color: #0f766e; }
+  .logo-bars { display: flex; align-items: flex-end; gap: 3px; height: 16px; }
+  .logo-bars span { width: 4px; border-radius: 2px; background: #14b8a6; }
+  .logo-bars span:nth-child(1) { height: 8px; }
+  .logo-bars span:nth-child(2) { height: 16px; background: #4f46e5; }
+  .logo-bars span:nth-child(3) { height: 11px; }
+  .profile { text-align: center; margin-bottom: 44px; }
+  .avatar {
+    width: 60px; height: 60px; border-radius: 50%;
+    background: #4f46e5; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 600; margin: 0 auto 10px;
+  }
+  .profile h4 { font-size: 14px; }
+  .profile p { font-size: 12px; color: #6b7280; margin-top: 2px; }
+  .nav a {
+    display: block; padding: 11px 0; text-align: center;
+    font-size: 13px; color: #4b5563; text-decoration: none;
+  }
+  .nav a.active { font-weight: 600; color: #0f766e; }
+  .nav a .badge {
+    display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    background: #f43f5e; margin-left: 4px; vertical-align: middle;
+  }
+  .logout { margin-top: auto; font-size: 12px; color: #6b7280; text-align: center; cursor: pointer; }
+
+  /* Main */
+  .main { flex: 1; padding: 36px 44px; min-width: 0; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
+  .topbar-left { display: flex; align-items: center; gap: 12px; }
+  .topbar h1 { font-size: 28px; font-weight: 700; color: #111827; }
+  .menu-btn {
+    display: none; background: none; border: none; font-size: 24px; cursor: pointer; color: #1f2937;
+  }
+  .dots { display: flex; gap: 8px; }
+  .dots span { width: 14px; height: 14px; border-radius: 50%; background: #14b8a6; }
+  .dots span:last-child { background: #d1d5db; }
+
+  .grid-top { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-bottom: 28px; }
+  .stats { display: flex; gap: 28px; margin-top: 22px; flex-wrap: wrap; }
+  .stat small { font-size: 12px; color: #6b7280; display: block; margin-bottom: 6px; }
+  .stat strong { font-size: 22px; color: #111827; }
+  .stat .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #14b8a6; margin-left: 6px; }
+
+  .upgrade {
+    background: #f0f0ff; border-radius: 18px; padding: 22px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .upgrade .info h3 { font-size: 16px; margin-bottom: 4px; color: #312e81; }
+  .upgrade .info p { font-size: 12px; color: #6b7280; }
+  .upgrade .btn {
+    margin-left: auto; width: 54px; height: 54px; border-radius: 50%;
+    background: #4f46e5; color: #fff; font-size: 13px; font-weight: 600;
+    border: none; cursor: pointer; flex-shrink: 0;
+  }
+
+  .grid-mid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 28px; margin-bottom: 28px; }
+  .card-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .card-title h3 { font-size: 18px; font-weight: 700; color: #111827; }
+  .card-title select { font-size: 12px; border: 1px solid #e5e7eb; border-radius: 6px; padding: 4px 6px; background: #fff; color: #6b7280; }
+  .chart-wrap { position: relative; height: 220px; }
+
+  .performer { display: flex; align-items: center; gap: 10px; padding: 9px 0; font-size: 13px; border-bottom: 1px solid #f3f4f6; }
+  .performer .mini {
+    width: 30px; height: 30px; border-radius: 50%; color: #fff;
+    display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; flex-shrink: 0;
+  }
+  .performer .name { font-weight: 600; flex: 1; }
+  .performer .handle { color: #9ca3af; flex: 1; }
+  .performer .pct { font-weight: 600; color: #0f766e; }
+  .view-more { font-size: 12px; color: #4f46e5; margin-top: 12px; display: inline-block; cursor: pointer; font-weight: 600; }
+
+  .channels { display: grid; grid-template-columns: 1.2fr repeat(4, 1fr) 1fr; gap: 16px; align-items: stretch; }
+  .channel-info h3 { font-size: 18px; font-weight: 700; margin-bottom: 6px; color: #111827; }
+  .channel-info p { font-size: 12px; color: #6b7280; }
+  .channel-card {
+    background: #fff; border-radius: 16px; padding: 18px 12px;
+    text-align: center; box-shadow: 0 4px 16px rgba(15,118,110,0.08);
+  }
+  .channel-card .ico {
+    width: 28px; height: 28px; border-radius: 50%; margin: 0 auto 10px;
+    color: #fff; font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .channel-card h5 { font-size: 12px; color: #111827; }
+  .channel-card small { font-size: 10px; color: #9ca3af; display: block; margin-bottom: 10px; }
+  .channel-card .val { font-size: 18px; font-weight: 700; }
+  .channel-card .val.up { color: #0d9488; }
+  .channel-card .val.down { color: #e11d48; }
+  .full-stats {
+    background: #0f766e; color: #fff; border-radius: 16px;
+    padding: 18px 14px; display: flex; flex-direction: column;
+    justify-content: space-between; font-weight: 600; font-size: 15px;
+  }
+  .full-stats .arrow {
+    width: 28px; height: 28px; background: #fff; color: #0f766e;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px;
+  }
+
+  /* Responsive */
+  @media (max-width: 1100px) {
+    .channels { grid-template-columns: repeat(3, 1fr); }
+    .channel-info { grid-column: 1 / -1; }
+    .full-stats { grid-column: 1 / -1; flex-direction: row; align-items: center; }
+  }
+  @media (max-width: 900px) {
+    .grid-mid { grid-template-columns: 1fr; }
+    .sidebar {
+      position: fixed; top: 0; left: 0; height: 100vh; z-index: 10;
+      transform: translateX(-100%); box-shadow: 4px 0 20px rgba(0,0,0,0.1);
+    }
+    .sidebar.open { transform: translateX(0); }
+    .menu-btn { display: block; }
+    .main { padding: 24px 20px; }
+  }
+  @media (max-width: 720px) {
+    .grid-top { grid-template-columns: 1fr; }
+    .stats { gap: 18px; }
+    .topbar h1 { font-size: 24px; }
+    .channels { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 480px) {
+    .channels { grid-template-columns: 1fr; }
+    .stat strong { font-size: 18px; }
+    .main { padding: 20px 14px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="logo">
+      <div class="logo-bars"><span></span><span></span><span></span></div>
+      Brightboard
+    </div>
+    <div class="profile">
+      <div class="avatar">SM</div>
+      <h4>Sana Malik</h4>
+      <p>Growth Lead</p>
+    </div>
+    <nav class="nav">
+      <a href="#" class="active">Overview <span class="badge"></span></a>
+      <a href="#">Analytics</a>
+      <a href="#">Reports</a>
+      <a href="#">Feedback</a>
+      <a href="#">Platforms</a>
+    </nav>
+    <div class="logout">Sign out</div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <button class="menu-btn" id="menuBtn" aria-label="Menu">&#9776;</button>
+        <h1>Overview</h1>
+      </div>
+      <div class="dots"><span></span><span></span></div>
+    </div>
+
+    <div class="grid-top">
+      <div>
+        <div class="stats">
+          <div class="stat"><small>Impressions <span class="dot"></span></small><strong>27.6m</strong></div>
+          <div class="stat"><small>Subscribers <span class="dot" style="background:#4f46e5"></span></small><strong>219.3k</strong></div>
+          <div class="stat"><small>Submissions <span class="dot" style="background:#f59e0b"></span></small><strong>1.5k</strong></div>
+        </div>
+      </div>
+      <div class="upgrade">
+        <div class="avatar" style="width:40px;height:40px;font-size:12px;margin:0;">SM</div>
+        <div class="info">
+          <h3>Unlock Pro Tools</h3>
+          <p>Get deeper insights and wider reach</p>
+        </div>
+        <button class="btn">Go</button>
+      </div>
+    </div>
+
+    <div class="grid-mid">
+      <div>
+        <div class="card-title">
+          <h3>Weekly Activity</h3>
+          <select><option>Jan 1 - Jan 7</option></select>
+        </div>
+        <div class="chart-wrap"><canvas id="activityChart"></canvas></div>
+      </div>
+      <div>
+        <div class="card-title"><h3>Top Contributors</h3></div>
+        <div class="performer"><div class="mini" style="background:#4f46e5">IA</div><span class="name">Ilya Anderson</span><span class="handle">@ilyanderson</span><span class="pct">39%</span></div>
+        <div class="performer"><div class="mini" style="background:#0d9488">MH</div><span class="name">Mark Hall</span><span class="handle">@markhall</span><span class="pct">18%</span></div>
+        <div class="performer"><div class="mini" style="background:#f59e0b">NF</div><span class="name">Newt Fly</span><span class="handle">@newtfly</span><span class="pct">26%</span></div>
+        <span class="view-more">See all &rarr;</span>
+      </div>
+    </div>
+
+    <div class="channels">
+      <div class="channel-info">
+        <h3>Platforms</h3>
+        <p>Your platform performance for the past 7 days.</p>
+      </div>
+      <div class="channel-card">
+        <div class="ico" style="background:#ec4899">D</div>
+        <h5>Dribbble</h5><small>Design</small>
+        <div class="val up">+2%</div>
+      </div>
+      <div class="channel-card">
+        <div class="ico" style="background:#4f46e5">Be</div>
+        <h5>Behance</h5><small>Portfolio</small>
+        <div class="val down">-7%</div>
+      </div>
+      <div class="channel-card">
+        <div class="ico" style="background:#14b8a6">I</div>
+        <h5>Instagram</h5><small>Social</small>
+        <div class="val up">+4%</div>
+      </div>
+      <div class="channel-card">
+        <div class="ico" style="background:#f43f5e">P</div>
+        <h5>Pinterest</h5><small>Social</small>
+        <div class="val up">+2%</div>
+      </div>
+      <div class="full-stats">
+        <span>Full Report</span>
+        <div class="arrow">&rarr;</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  const ctx = document.getElementById('activityChart');
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: ['01','02','03','04','05','06','07'],
+      datasets: [{
+        data: [18, 22, 15, 24, 20, 26, 21],
+        borderColor: '#14b8a6',
+        backgroundColor: 'rgba(20,184,166,0.12)',
+        tension: 0.4,
+        fill: true,
+        pointRadius: 3,
+        pointBackgroundColor: '#14b8a6'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { ticks: { font: { size: 10 } }, grid: { color: '#f3f4f6' } },
+        x: { ticks: { font: { size: 10 } }, grid: { display: false } }
+      }
+    }
+  });
+
+  const sidebar = document.getElementById('sidebar');
+  document.getElementById('menuBtn').addEventListener('click', () => {
+    sidebar.classList.toggle('open');
+  });
+</script>
+</body>
+</html>
